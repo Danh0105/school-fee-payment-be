@@ -94,10 +94,7 @@ export default function StudentsPage() {
         { value: "OTHER", label: "Khác" },
       ],
     },
-    { name: "phone", label: "Điện thoại học sinh" },
-    { name: "parentName", label: "Tên phụ huynh" },
-    { name: "parentPhone", label: "Điện thoại phụ huynh" },
-    { name: "parentEmail", label: "Email phụ huynh", type: "email" },
+    { name: "phone", label: "Số điện thoại" },
     { name: "address", label: "Địa chỉ", className: "sm:col-span-2" },
     {
       name: "status",

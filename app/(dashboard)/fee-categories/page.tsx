@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Pencil, Plus, Tags } from "lucide-react";
 import { z } from "zod";
 import { DataTable, type DataColumn } from "@/components/data-table";
@@ -11,6 +12,13 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   feeCategoriesApi,
   type FeeCategoryPayload,
@@ -36,10 +44,18 @@ type Values = z.infer<typeof schema>;
 
 export default function FeeCategoriesPage() {
   const table = useDataTable("createdAt");
-  const result = useFeeCategories(table.query);
-  const schools = useSchools({ limit: 200, sortBy: "name", sortOrder: "ASC" });
   const role = useAuthStore((state) => state.user?.role);
   const schoolId = useAuthStore((state) => state.user?.schoolId) ?? "";
+  const [schoolFilter, setSchoolFilter] = useState(schoolId);
+  const result = useFeeCategories({
+    ...table.query,
+    schoolId: schoolFilter || undefined,
+  });
+  const schools = useSchools({ limit: 200, sortBy: "name", sortOrder: "ASC" });
+  const schoolsById = useMemo(
+    () => new Map(schools.data?.data.map((item) => [item.id, item.name])),
+    [schools.data],
+  );
   const fields: FormFieldConfig<Values>[] = [
     {
       name: "schoolId",
@@ -81,6 +97,11 @@ export default function FeeCategoriesPage() {
           {row.code}
         </span>
       ),
+    },
+    {
+      key: "schoolId",
+      header: "Trường",
+      render: (row) => schoolsById.get(row.schoolId) ?? "—",
     },
     {
       key: "name",
@@ -173,6 +194,27 @@ export default function FeeCategoriesPage() {
         onPageChange={table.setPage}
         onLimitChange={table.setLimit}
         onSort={table.toggleSort}
+        filters={
+          <Select
+            value={schoolFilter || undefined}
+            onValueChange={(value) => {
+              setSchoolFilter(value);
+              table.setPage(1);
+            }}
+            disabled={Boolean(schoolId)}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Tất cả trường" />
+            </SelectTrigger>
+            <SelectContent>
+              {schools.data?.data.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
         actions={
           can(role, PERMISSIONS.feeWrite) ? (
             <EntityFormDialog
@@ -186,7 +228,7 @@ export default function FeeCategoriesPage() {
               schema={schema}
               fields={fields}
               defaultValues={{
-                schoolId,
+                schoolId: schoolId || schoolFilter,
                 code: "",
                 name: "",
                 description: "",

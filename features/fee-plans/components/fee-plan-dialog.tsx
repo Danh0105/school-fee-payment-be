@@ -108,11 +108,14 @@ export function FeePlanDialog({
     {
       limit: 200,
       schoolId: selectedSchoolId || undefined,
-      status: "ACTIVE",
       sortBy: "name",
       sortOrder: "ASC",
     },
     Boolean(selectedSchoolId && currentYear.data),
+  );
+  const activeCategories = useMemo(
+    () => categories.data?.data.filter((item) => item.status === "ACTIVE"),
+    [categories.data],
   );
   const mutation = useMutation({
     mutationFn: (values: Values) => {
@@ -236,7 +239,7 @@ export function FeePlanDialog({
                         <SelectValue placeholder="Chọn danh mục" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.data?.data.map((item) => (
+                        {activeCategories?.map((item) => (
                           <SelectItem key={item.id} value={item.id}>
                             {item.name}
                           </SelectItem>
