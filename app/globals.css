@@ -1,26 +1,152 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f5f7ef;
+  --foreground: #15322d;
+  --brand-green: #078247;
+  --brand-green-dark: #054c3b;
+  --brand-blue: #237fb5;
+  --brand-blue-dark: #155e92;
+  --brand-lime: #75b83c;
+  --brand-gold: #dfa72f;
+  --brand-cream: #f9f8ef;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: "Inter", "Segoe UI", Arial, sans-serif;
+  --font-display: "Manrope", "Segoe UI", Arial, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  margin: 0;
+  background-image:
+    radial-gradient(
+      circle at 88% 8%,
+      rgba(117, 184, 60, 0.1),
+      transparent 24rem
+    ),
+    radial-gradient(
+      circle at 18% 86%,
+      rgba(35, 127, 181, 0.08),
+      transparent 28rem
+    );
+  background-attachment: fixed;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  border-color: #dce6dc;
+}
+
+::selection {
+  background: #dceca8;
+  color: #054c3b;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(223, 167, 47, 0.42) transparent;
+}
+
+.brand-grid {
+  background-image:
+    linear-gradient(rgba(7, 130, 71, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(7, 130, 71, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.brand-orbit {
+  position: relative;
+  isolation: isolate;
+}
+
+.brand-orbit::before,
+.brand-orbit::after {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+.brand-orbit::before {
+  height: 360px;
+  right: -165px;
+  top: -110px;
+  transform: rotate(24deg);
+  width: 510px;
+}
+
+.brand-orbit::after {
+  bottom: -180px;
+  height: 410px;
+  left: -220px;
+  transform: rotate(-18deg);
+  width: 560px;
+}
+
+.brand-card {
+  box-shadow: 0 18px 45px -32px rgba(5, 76, 59, 0.45);
+}
+
+.brand-card::after {
+  background: linear-gradient(
+    90deg,
+    var(--brand-green),
+    var(--brand-lime),
+    var(--brand-gold),
+    var(--brand-blue)
+  );
+  content: "";
+  height: 3px;
+  left: 22px;
+  opacity: 0.8;
+  position: absolute;
+  right: 22px;
+  top: 0;
+}
+
+@keyframes brand-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(3deg);
+  }
+}
+
+.brand-float {
+  animation: brand-float 7s ease-in-out infinite;
+}
+
+@media print {
+  .print-hidden,
+  aside,
+  header {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  body {
+    background: white !important;
+  }
+  .print-sheet {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
 }

@@ -1,0 +1,20 @@
+export const queryKeys = {
+  dashboard: ["dashboard"] as const,
+  schools: ["schools"] as const,
+  currentAcademicYear: (schoolId: string) =>
+    ["academic-years", "current", schoolId] as const,
+  semesters: ["semesters"] as const,
+  classes: ["classes"] as const,
+  students: ["students"] as const,
+  feeCategories: ["fee-categories"] as const,
+  feePlans: ["fee-plans"] as const,
+  receivables: ["receivables"] as const,
+  paymentOrders: ["payment-orders"] as const,
+  transactions: ["payment-transactions"] as const,
+  reconciliation: ["reconciliation"] as const,
+  receipts: ["receipts"] as const,
+  refunds: ["refunds"] as const,
+  reports: ["reports"] as const,
+  auditLogs: ["audit-logs"] as const,
+  parentPortal: ["parent-portal"] as const,
+};
