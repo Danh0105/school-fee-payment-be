@@ -229,7 +229,12 @@ export interface StudentCredits {
   availableBalance: string;
 }
 
-export type PaymentMethod = "BANK_TRANSFER" | "VIETQR" | "CASH" | "OTHER";
+export type PaymentMethod =
+  | "BANK_TRANSFER"
+  | "VIETQR"
+  | "VIETINBANK"
+  | "CASH"
+  | "OTHER";
 export type PaymentOrderStatus =
   "PENDING" | "PAID" | "PARTIALLY_PAID" | "EXPIRED" | "CANCELLED" | "FAILED";
 

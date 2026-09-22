@@ -41,7 +41,7 @@ const itemSchema = z.object({
     .refine((value) => new Decimal(value || 0).gt(0), "Số tiền phải lớn hơn 0"),
 });
 const schema = z.object({
-  paymentMethod: z.enum(["VIETQR", "CASH"]),
+  paymentMethod: z.enum(["VIETQR", "VIETINBANK", "CASH"]),
   items: z.array(itemSchema).min(1, "Chọn ít nhất một khoản công nợ"),
 });
 type Values = z.infer<typeof schema>;
@@ -161,6 +161,9 @@ export function CreatePaymentOrderDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="VIETQR">Chuyển khoản VietQR</SelectItem>
+                    <SelectItem value="VIETINBANK">
+                      VietinBank (tài khoản định danh) — test
+                    </SelectItem>
                     <SelectItem value="CASH">Thu tiền mặt</SelectItem>
                   </SelectContent>
                 </Select>
