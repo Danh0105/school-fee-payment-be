@@ -49,6 +49,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 export class ApiError extends Error {
+  /** The backend's own message, before it is replaced by the code's text. */
+  public readonly serverMessage: string;
+
   constructor(
     public readonly code: string,
     message: string,
@@ -57,6 +60,7 @@ export class ApiError extends Error {
   ) {
     super(ERROR_MESSAGES[code] ?? message);
     this.name = "ApiError";
+    this.serverMessage = message;
   }
 }
 

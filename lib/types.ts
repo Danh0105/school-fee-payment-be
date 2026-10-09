@@ -438,3 +438,95 @@ export interface AuditLog extends BaseEntity {
   ipAddress: string | null;
   userAgent: string | null;
 }
+
+export type EInvoiceStatus =
+  | "PENDING"
+  | "QUEUED"
+  | "PROCESSING"
+  | "WAITING_INVOICE_NUMBER"
+  | "ISSUED"
+  | "FILE_PENDING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED"
+  | "ADJUSTED"
+  | "REPLACED";
+
+export interface EInvoice extends BaseEntity {
+  schoolId: string;
+  school?: School;
+  provider: string;
+  paymentId: string;
+  receiptId: string;
+  receipt?: Receipt;
+  studentId: string;
+  student?: Student;
+  supplierTaxCode: string;
+  templateCode: string;
+  invoiceSeries: string;
+  invoiceNo: string | null;
+  transactionUuid: string;
+  transactionId: string | null;
+  reservationCode: string | null;
+  codeOfTax: string | null;
+  status: EInvoiceStatus;
+  errorCode: string | null;
+  errorDescription: string | null;
+  reconciliationAttempts: number;
+  issuedAt: string | null;
+}
+
+export type EInvoiceFileType = "PDF" | "ZIP";
+
+export interface EInvoiceFileInfo {
+  id: string;
+  fileType: EInvoiceFileType;
+  fileName: string;
+  size: string;
+  createdAt: string;
+}
+
+export interface EInvoiceAttempt {
+  id: string;
+  operation:
+    | "ISSUE"
+    | "RECONCILE"
+    | "DOWNLOAD"
+    | "SEND_EMAIL"
+    | "CANCEL"
+    | "UPDATE_PAYMENT";
+  status: "STARTED" | "SUCCEEDED" | "FAILED";
+  httpStatus: number | null;
+  errorCode: string | null;
+  errorDescription: string | null;
+  retryable: boolean;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+export interface EInvoiceDetail extends EInvoice {
+  files: EInvoiceFileInfo[];
+  attempts: EInvoiceAttempt[];
+}
+
+export interface EInvoiceConfig {
+  id: string;
+  schoolId: string;
+  provider: string;
+  enabled: boolean;
+  autoIssue: boolean;
+  supplierTaxCode: string;
+  templateCode: string;
+  invoiceSeries: string;
+  currencyCode: string;
+  taxPercentage: string | null;
+  pricesIncludeTax: boolean | null;
+  signingMode: string;
+  updatedAt: string;
+}
+
+export interface EInvoiceProviderStatus {
+  provider: string;
+  enabled: boolean;
+  autoIssue: boolean;
+}

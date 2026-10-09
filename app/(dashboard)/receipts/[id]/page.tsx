@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ReceiptEInvoiceCard } from "@/features/einvoices/components/receipt-einvoice-card";
 import { CancelReceiptDialog } from "@/features/receipts/components/cancel-receipt-dialog";
 import { useReceipt } from "@/features/receipts/hooks";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -57,6 +58,7 @@ export default function ReceiptDetailPage() {
             </>
           }
         />
+        <ReceiptEInvoiceCard receipt={data} />
       </div>
       <Card className="print-sheet mx-auto max-w-4xl">
         <CardContent className="p-7 sm:p-10">

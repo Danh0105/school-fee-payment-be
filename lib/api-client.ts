@@ -31,6 +31,19 @@ apiClient.interceptors.request.use((config) => {
 
 let refreshRequest: Promise<AuthTokens> | null = null;
 
+/** A `responseType: "blob"` request gets its JSON error envelope as a Blob. */
+async function readErrorEnvelope(
+  data: unknown,
+): Promise<ApiErrorEnvelope | undefined> {
+  if (typeof Blob === "undefined" || !(data instanceof Blob))
+    return data as ApiErrorEnvelope | undefined;
+  try {
+    return JSON.parse(await data.text()) as ApiErrorEnvelope;
+  } catch {
+    return undefined;
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => {
     if (response.config.responseType === "blob") return response;
@@ -74,7 +87,7 @@ apiClient.interceptors.response.use(
       }
     }
 
-    const payload = rawError.response?.data;
+    const payload = await readErrorEnvelope(rawError.response?.data);
     const code =
       payload?.error?.code ??
       (isUnauthorized ? "UNAUTHORIZED" : "INTERNAL_ERROR");

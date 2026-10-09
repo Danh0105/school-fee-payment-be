@@ -13,6 +13,7 @@ export const queryKeys = {
   transactions: ["payment-transactions"] as const,
   reconciliation: ["reconciliation"] as const,
   receipts: ["receipts"] as const,
+  einvoices: ["einvoices"] as const,
   refunds: ["refunds"] as const,
   reports: ["reports"] as const,
   auditLogs: ["audit-logs"] as const,
