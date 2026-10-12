@@ -12,6 +12,7 @@ export interface StudentPayload {
   parentName?: string;
   parentPhone?: string;
   parentEmail?: string;
+  parentPassword?: string;
   status?: "ACTIVE" | "INACTIVE" | "GRADUATED" | "TRANSFERRED";
 }
 export interface AssignStudentPayload {

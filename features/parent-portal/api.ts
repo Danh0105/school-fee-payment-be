@@ -2,6 +2,7 @@ import type {
   ParentAccessResponse,
   ParentSchoolOption,
   ParentStudentSummary,
+  ParentStudentLookupCandidate,
   PaymentMethod,
   PaymentOrder,
   PaymentOrderQr,
@@ -14,9 +15,14 @@ export interface CreateParentPaymentOrderPayload {
   paymentMethod?: PaymentMethod;
 }
 
-export interface ParentAccessPayload {
+export interface ParentSearchPayload {
   schoolId: string;
-  identifierCode: string;
+  fullName: string;
+}
+
+export interface ParentVerifyPayload {
+  lookupToken: string;
+  password: string;
 }
 
 export const parentPortalApi = {
@@ -25,10 +31,16 @@ export const parentPortalApi = {
       method: "GET",
       url: "/parent-auth/schools",
     }),
-  access: (payload: ParentAccessPayload) =>
+  search: (payload: ParentSearchPayload) =>
+    parentApiRequest<ParentStudentLookupCandidate[]>({
+      method: "POST",
+      url: "/parent-auth/search",
+      data: payload,
+    }),
+  verify: (payload: ParentVerifyPayload) =>
     parentApiRequest<ParentAccessResponse>({
       method: "POST",
-      url: "/parent-auth/access",
+      url: "/parent-auth/verify",
       data: payload,
     }),
   me: () =>

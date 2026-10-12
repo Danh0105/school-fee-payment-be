@@ -43,6 +43,10 @@ const schema = z.object({
   dateOfBirth: optionalText,
   phone: optionalText,
   address: optionalText,
+  parentPassword: z
+    .string()
+    .min(8, "Mật khẩu cần ít nhất 8 ký tự")
+    .max(72, "Mật khẩu không được quá 72 ký tự"),
 });
 type Values = z.infer<typeof schema>;
 
@@ -65,6 +69,7 @@ export function StudentCreateDialog({
       dateOfBirth: "",
       phone: "",
       address: "",
+      parentPassword: "",
     }),
     [schoolId, classId],
   );
@@ -109,6 +114,7 @@ export function StudentCreateDialog({
         dateOfBirth: values.dateOfBirth,
         phone: values.phone,
         address: values.address,
+        parentPassword: values.parentPassword,
       }) as StudentPayload;
       const student = await studentsApi.create(payload);
       await studentsApi.assignClass({
@@ -144,11 +150,7 @@ export function StudentCreateDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit((values) => mutation.mutate(values))}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              label="Trường"
-              required
-              error={errors.schoolId?.message}
-            >
+            <FormField label="Trường" required error={errors.schoolId?.message}>
               <Controller
                 name="schoolId"
                 control={control}
@@ -204,7 +206,11 @@ export function StudentCreateDialog({
                     <Select
                       value={field.value || undefined}
                       onValueChange={field.onChange}
-                      disabled={Boolean(classId) || !currentYear.data || classes.isLoading}
+                      disabled={
+                        Boolean(classId) ||
+                        !currentYear.data ||
+                        classes.isLoading
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue
@@ -253,6 +259,20 @@ export function StudentCreateDialog({
               <Input {...register("phone")} />
             </FormField>
 
+            <FormField
+              label="Mật khẩu tài khoản phụ huynh"
+              required
+              error={errors.parentPassword?.message}
+              hint="Phụ huynh dùng mật khẩu này sau khi tìm đúng hồ sơ học sinh."
+            >
+              <Input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Tối thiểu 8 ký tự"
+                {...register("parentPassword")}
+              />
+            </FormField>
+
             <div className="sm:col-span-2">
               <FormField label="Địa chỉ" error={errors.address?.message}>
                 <Input {...register("address")} />
@@ -267,7 +287,10 @@ export function StudentCreateDialog({
             >
               Hủy
             </Button>
-            <Button type="submit" disabled={mutation.isPending || !currentYear.data}>
+            <Button
+              type="submit"
+              disabled={mutation.isPending || !currentYear.data}
+            >
               {mutation.isPending ? "Đang tạo…" : "Tạo học sinh"}
             </Button>
           </DialogFooter>

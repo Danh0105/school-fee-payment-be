@@ -46,6 +46,15 @@ const schema = z.object({
   parentEmail: z
     .union([z.literal(""), z.email("Email phụ huynh chưa hợp lệ")])
     .optional(),
+  parentPassword: z
+    .union([
+      z.literal(""),
+      z
+        .string()
+        .min(8, "Mật khẩu cần ít nhất 8 ký tự")
+        .max(72, "Mật khẩu không được quá 72 ký tự"),
+    ])
+    .optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "GRADUATED", "TRANSFERRED"]),
 });
 type Values = z.infer<typeof schema>;
@@ -96,6 +105,14 @@ export default function StudentsPage() {
     },
     { name: "phone", label: "Số điện thoại" },
     { name: "address", label: "Địa chỉ", className: "sm:col-span-2" },
+    {
+      name: "parentPassword",
+      label: "Đặt lại mật khẩu phụ huynh",
+      type: "password",
+      placeholder: "Để trống nếu không đổi",
+      hint: "Tối thiểu 8 ký tự. Mật khẩu hiện tại không được hiển thị.",
+      className: "sm:col-span-2",
+    },
     {
       name: "status",
       label: "Trạng thái",
@@ -175,6 +192,7 @@ export default function StudentsPage() {
                 parentName: row.parentName ?? "",
                 parentPhone: row.parentPhone ?? "",
                 parentEmail: row.parentEmail ?? "",
+                parentPassword: "",
                 status: row.status,
               }}
               successMessage="Đã cập nhật học sinh"
