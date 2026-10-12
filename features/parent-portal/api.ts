@@ -1,6 +1,5 @@
 import type {
   ParentAccessResponse,
-  ParentSchoolOption,
   ParentStudentSummary,
   PaymentMethod,
   PaymentOrder,
@@ -15,17 +14,11 @@ export interface CreateParentPaymentOrderPayload {
 }
 
 export interface ParentLoginPayload {
-  schoolId: string;
   username: string;
   password: string;
 }
 
 export const parentPortalApi = {
-  schools: () =>
-    parentApiRequest<ParentSchoolOption[]>({
-      method: "GET",
-      url: "/parent-auth/schools",
-    }),
   login: (payload: ParentLoginPayload) =>
     parentApiRequest<ParentAccessResponse>({
       method: "POST",

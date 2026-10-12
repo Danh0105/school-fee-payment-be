@@ -5,26 +5,17 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { ArrowRight, BadgeCheck, KeyRound, Phone } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { parentPortalApi } from "@/features/parent-portal/api";
-import { useParentSchools } from "@/features/parent-portal/hooks";
 import { getErrorMessage } from "@/lib/error-messages";
 import { queryKeys } from "@/lib/query-keys";
 import { useParentSessionStore } from "@/stores/parent-session-store";
 
 const schema = z.object({
-  schoolId: z.string().min(1, "Vui lòng chọn trường."),
   username: z
     .string()
     .trim()
@@ -43,17 +34,14 @@ export default function ParentAccessPage() {
   const hydrated = useParentSessionStore((state) => state.hydrated);
   const accessToken = useParentSessionStore((state) => state.accessToken);
   const setSession = useParentSessionStore((state) => state.setSession);
-  const schools = useParentSchools();
   const {
     register,
-    control,
     handleSubmit,
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { schoolId: "", username: "", password: "" },
+    defaultValues: { username: "", password: "" },
   });
-  const schoolId = useWatch({ control, name: "schoolId" });
   const mutation = useMutation({
     mutationFn: (values: Values) => parentPortalApi.login(values),
     onSuccess: (session) => {
@@ -100,58 +88,6 @@ export default function ParentAccessPage() {
         className="space-y-5 px-6 py-8 sm:px-10"
         onSubmit={handleSubmit((values) => mutation.mutate(values))}
       >
-        <div>
-          <label
-            htmlFor="schoolId"
-            className="text-sm font-bold text-slate-800"
-          >
-            Trường
-          </label>
-          <div className="mt-2">
-            <Controller
-              name="schoolId"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  value={field.value || undefined}
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    mutation.reset();
-                  }}
-                  disabled={schools.isLoading}
-                >
-                  <SelectTrigger id="schoolId" className="h-12 text-base">
-                    <SelectValue
-                      placeholder={
-                        schools.isLoading
-                          ? "Đang tải danh sách trường…"
-                          : "Chọn trường"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schools.data?.map((school) => (
-                      <SelectItem key={school.id} value={school.id}>
-                        {school.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-          {errors.schoolId?.message && (
-            <p className="mt-2 text-sm font-medium text-rose-600">
-              {errors.schoolId.message}
-            </p>
-          )}
-          {schools.error && (
-            <p className="mt-2 text-sm font-medium text-rose-600" role="alert">
-              Không tải được danh sách trường. {getErrorMessage(schools.error)}
-            </p>
-          )}
-        </div>
-
         <div>
           <label
             htmlFor="username"
@@ -208,7 +144,6 @@ export default function ParentAccessPage() {
           )}
           {!errors.password &&
             !errors.username &&
-            !errors.schoolId &&
             mutation.error && (
               <p
                 className="mt-2 text-sm font-medium text-rose-600"
@@ -223,7 +158,7 @@ export default function ParentAccessPage() {
           type="submit"
           size="lg"
           className="w-full"
-          disabled={mutation.isPending || !schoolId}
+          disabled={mutation.isPending}
         >
           {mutation.isPending ? "Đang đăng nhập…" : "Đăng nhập"}
           {!mutation.isPending && <ArrowRight />}

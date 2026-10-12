@@ -5,14 +5,6 @@ import { queryKeys } from "@/lib/query-keys";
 import { useParentSessionStore } from "@/stores/parent-session-store";
 import { parentPortalApi } from "./api";
 
-export function useParentSchools() {
-  return useQuery({
-    queryKey: [...queryKeys.parentPortal, "schools"],
-    queryFn: parentPortalApi.schools,
-    staleTime: 5 * 60_000,
-  });
-}
-
 export function useParentMe() {
   const hasToken = useParentSessionStore((state) => Boolean(state.accessToken));
   return useQuery({
