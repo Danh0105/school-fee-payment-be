@@ -60,7 +60,7 @@ export default function ParentReceivablesPage() {
     mutationFn: () =>
       parentPortalApi.createPaymentOrder({
         items: selectedRows.map((row) => ({ receivableId: row.id })),
-        paymentMethod: "VIETQR",
+        paymentMethod: "VIETINBANK",
       }),
     onSuccess: (order) => router.push(`/parent/payment-orders/${order.id}`),
   });

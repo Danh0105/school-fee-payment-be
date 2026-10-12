@@ -17,31 +17,12 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-const demoAccounts = [
-  {
-    label: "Quản trị",
-    email: "admin@kimdong.edu.vn",
-    password: "Admin@123456",
-  },
-  {
-    label: "Kế toán",
-    email: "ketoan@kimdong.edu.vn",
-    password: "KeToan@123456",
-  },
-  {
-    label: "Thu quỹ",
-    email: "thuquy@kimdong.edu.vn",
-    password: "ThuQuy@123456",
-  },
-];
-
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const login = useLogin();
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -148,29 +129,6 @@ export function LoginForm() {
           {login.isPending ? "Đang xác thực…" : "Đăng nhập"}
         </Button>
       </form>
-
-      <div className="mt-7 border-t border-[#078247]/8 pt-5">
-        <p className="mb-3 text-xs font-semibold text-slate-500">
-          Tài khoản dùng thử
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          {demoAccounts.map((account) => (
-            <button
-              key={account.email}
-              type="button"
-              onClick={() => {
-                setValue("email", account.email, { shouldValidate: true });
-                setValue("password", account.password, {
-                  shouldValidate: true,
-                });
-              }}
-              className="rounded-xl border border-[#078247]/12 bg-[#f7faf4] px-2 py-2.5 text-xs font-bold text-[#58736d] transition hover:border-[#237fb5]/30 hover:bg-[#eaf4f9] hover:text-[#155e92]"
-            >
-              {account.label}
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

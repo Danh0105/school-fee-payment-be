@@ -37,23 +37,19 @@ import { useAuthStore } from "@/stores/auth-store";
 const schema = z.object({
   identifierCode: optionalText,
   fullName: requiredText("Họ và tên"),
-  dateOfBirth: optionalText,
+  dateOfBirth: requiredText("Ngày sinh"),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional().or(z.literal("")),
   address: optionalText,
   phone: optionalText,
   parentName: optionalText,
-  parentPhone: optionalText,
+  parentPhone: z
+    .string()
+    .trim()
+    .min(9, "Số điện thoại phụ huynh chưa hợp lệ")
+    .max(20, "Số điện thoại phụ huynh chưa hợp lệ")
+    .regex(/^\+?[0-9 .-]+$/, "Số điện thoại phụ huynh chưa hợp lệ"),
   parentEmail: z
     .union([z.literal(""), z.email("Email phụ huynh chưa hợp lệ")])
-    .optional(),
-  parentPassword: z
-    .union([
-      z.literal(""),
-      z
-        .string()
-        .min(8, "Mật khẩu cần ít nhất 8 ký tự")
-        .max(72, "Mật khẩu không được quá 72 ký tự"),
-    ])
     .optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "GRADUATED", "TRANSFERRED"]),
 });
@@ -92,7 +88,13 @@ export default function StudentsPage() {
   const fields: FormFieldConfig<Values>[] = [
     { name: "fullName", label: "Họ và tên", required: true },
     { name: "identifierCode", label: "Mã định danh" },
-    { name: "dateOfBirth", label: "Ngày sinh", type: "date" },
+    {
+      name: "dateOfBirth",
+      label: "Ngày sinh",
+      type: "date",
+      required: true,
+      hint: "Mật khẩu phụ huynh là ngày sinh theo dạng DDMMYYYY.",
+    },
     {
       name: "gender",
       label: "Giới tính",
@@ -104,15 +106,15 @@ export default function StudentsPage() {
       ],
     },
     { name: "phone", label: "Số điện thoại" },
-    { name: "address", label: "Địa chỉ", className: "sm:col-span-2" },
+    { name: "parentName", label: "Tên phụ huynh" },
     {
-      name: "parentPassword",
-      label: "Đặt lại mật khẩu phụ huynh",
-      type: "password",
-      placeholder: "Để trống nếu không đổi",
-      hint: "Tối thiểu 8 ký tự. Mật khẩu hiện tại không được hiển thị.",
-      className: "sm:col-span-2",
+      name: "parentPhone",
+      label: "SĐT tài khoản phụ huynh",
+      required: true,
+      hint: "Dùng làm tên đăng nhập của phụ huynh.",
     },
+    { name: "parentEmail", label: "Email phụ huynh", type: "email" },
+    { name: "address", label: "Địa chỉ", className: "sm:col-span-2" },
     {
       name: "status",
       label: "Trạng thái",
@@ -192,7 +194,6 @@ export default function StudentsPage() {
                 parentName: row.parentName ?? "",
                 parentPhone: row.parentPhone ?? "",
                 parentEmail: row.parentEmail ?? "",
-                parentPassword: "",
                 status: row.status,
               }}
               successMessage="Đã cập nhật học sinh"

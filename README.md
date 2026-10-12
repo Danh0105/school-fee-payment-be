@@ -19,14 +19,6 @@ Tạo `.env.local` nếu backend không dùng địa chỉ mặc định:
 NEXT_PUBLIC_API_URL=http://localhost:3010
 ```
 
-## Tài khoản kiểm thử
-
-| Vai trò     | Email                   | Mật khẩu        |
-| ----------- | ----------------------- | --------------- |
-| SUPER_ADMIN | `admin@kimdong.edu.vn`  | `Admin@123456`  |
-| ACCOUNTANT  | `ketoan@kimdong.edu.vn` | `KeToan@123456` |
-| CASHIER     | `thuquy@kimdong.edu.vn` | `ThuQuy@123456` |
-
 ## Kiểm tra chất lượng
 
 ```bash

@@ -40,13 +40,19 @@ const schema = z.object({
   classId: uuid("lớp"),
   fullName: requiredText("Họ và tên"),
   identifierCode: optionalText,
-  dateOfBirth: optionalText,
+  dateOfBirth: requiredText("Ngày sinh"),
   phone: optionalText,
   address: optionalText,
-  parentPassword: z
+  parentName: optionalText,
+  parentPhone: z
     .string()
-    .min(8, "Mật khẩu cần ít nhất 8 ký tự")
-    .max(72, "Mật khẩu không được quá 72 ký tự"),
+    .trim()
+    .min(9, "Số điện thoại phụ huynh chưa hợp lệ")
+    .max(20, "Số điện thoại phụ huynh chưa hợp lệ")
+    .regex(/^\+?[0-9 .-]+$/, "Số điện thoại phụ huynh chưa hợp lệ"),
+  parentEmail: z
+    .union([z.literal(""), z.email("Email phụ huynh chưa hợp lệ")])
+    .optional(),
 });
 type Values = z.infer<typeof schema>;
 
@@ -69,7 +75,9 @@ export function StudentCreateDialog({
       dateOfBirth: "",
       phone: "",
       address: "",
-      parentPassword: "",
+      parentName: "",
+      parentPhone: "",
+      parentEmail: "",
     }),
     [schoolId, classId],
   );
@@ -114,7 +122,9 @@ export function StudentCreateDialog({
         dateOfBirth: values.dateOfBirth,
         phone: values.phone,
         address: values.address,
-        parentPassword: values.parentPassword,
+        parentName: values.parentName,
+        parentPhone: values.parentPhone,
+        parentEmail: values.parentEmail,
       }) as StudentPayload;
       const student = await studentsApi.create(payload);
       await studentsApi.assignClass({
@@ -124,8 +134,8 @@ export function StudentCreateDialog({
       });
       return student;
     },
-    onSuccess: () => {
-      toast.success("Đã tạo học sinh và xếp lớp");
+    onSuccess: (student) => {
+      toast.success(`Đã tạo học sinh với mã ${student.studentCode}`);
       void client.invalidateQueries({ queryKey: queryKeys.students });
       void client.invalidateQueries({ queryKey: queryKeys.classes });
       setOpen(false);
@@ -145,7 +155,7 @@ export function StudentCreateDialog({
         <DialogHeader>
           <DialogTitle>Thêm học sinh</DialogTitle>
           <DialogDescription>
-            Học sinh phải thuộc một lớp của trường ngay khi tạo.
+            Hệ thống tự sinh mã học sinh chính thức sau khi tạo hồ sơ.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit((values) => mutation.mutate(values))}>
@@ -238,7 +248,10 @@ export function StudentCreateDialog({
               required
               error={errors.fullName?.message}
             >
-              <Input placeholder="Nguyễn Văn A" {...register("fullName")} />
+              <Input
+                placeholder="Nhập họ và tên học sinh"
+                {...register("fullName")}
+              />
             </FormField>
 
             <FormField
@@ -251,7 +264,12 @@ export function StudentCreateDialog({
               />
             </FormField>
 
-            <FormField label="Ngày sinh" error={errors.dateOfBirth?.message}>
+            <FormField
+              label="Ngày sinh"
+              required
+              error={errors.dateOfBirth?.message}
+              hint="Mật khẩu đăng nhập phụ huynh là ngày sinh theo dạng DDMMYYYY."
+            >
               <Input type="date" {...register("dateOfBirth")} />
             </FormField>
 
@@ -259,18 +277,29 @@ export function StudentCreateDialog({
               <Input {...register("phone")} />
             </FormField>
 
+            <FormField label="Tên phụ huynh" error={errors.parentName?.message}>
+              <Input {...register("parentName")} />
+            </FormField>
+
             <FormField
-              label="Mật khẩu tài khoản phụ huynh"
+              label="SĐT tài khoản phụ huynh"
               required
-              error={errors.parentPassword?.message}
-              hint="Phụ huynh dùng mật khẩu này sau khi tìm đúng hồ sơ học sinh."
+              error={errors.parentPhone?.message}
+              hint="Số điện thoại này được dùng làm tên đăng nhập."
             >
               <Input
-                type="password"
-                autoComplete="new-password"
-                placeholder="Tối thiểu 8 ký tự"
-                {...register("parentPassword")}
+                type="tel"
+                autoComplete="tel"
+                placeholder="Nhập số điện thoại phụ huynh"
+                {...register("parentPhone")}
               />
+            </FormField>
+
+            <FormField
+              label="Email phụ huynh"
+              error={errors.parentEmail?.message}
+            >
+              <Input type="email" {...register("parentEmail")} />
             </FormField>
 
             <div className="sm:col-span-2">

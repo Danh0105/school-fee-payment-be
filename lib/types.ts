@@ -124,13 +124,6 @@ export interface ParentAccessResponse {
   student: ParentStudentSummary;
 }
 
-export interface ParentStudentLookupCandidate {
-  lookupToken: string;
-  displayName: string;
-  dateOfBirthHint: string | null;
-  parentPhoneHint: string | null;
-}
-
 export interface FeeCategory extends BaseEntity {
   schoolId: string;
   code: string;

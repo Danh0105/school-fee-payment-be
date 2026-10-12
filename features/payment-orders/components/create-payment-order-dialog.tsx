@@ -97,7 +97,7 @@ export function CreatePaymentOrderDialog({
   } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
-      paymentMethod: "VIETQR",
+      paymentMethod: "VIETINBANK",
       items: hasInitialSelection ? initialItems : [],
     },
   });
@@ -113,7 +113,7 @@ export function CreatePaymentOrderDialog({
   useEffect(() => {
     if (open)
       reset({
-        paymentMethod: "VIETQR",
+        paymentMethod: "VIETINBANK",
         items: hasInitialSelection ? initialItems : [],
       });
   }, [open, hasInitialSelection, initialItems, reset]);
@@ -162,7 +162,7 @@ export function CreatePaymentOrderDialog({
                   <SelectContent>
                     <SelectItem value="VIETQR">Chuyển khoản VietQR</SelectItem>
                     <SelectItem value="VIETINBANK">
-                      VietinBank (tài khoản định danh) — test
+                      VietinBank (tài khoản định danh)
                     </SelectItem>
                     <SelectItem value="CASH">Thu tiền mặt</SelectItem>
                   </SelectContent>
