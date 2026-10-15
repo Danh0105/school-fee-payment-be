@@ -5,6 +5,7 @@ import type {
   EInvoice,
   EInvoiceConfig,
   EInvoiceDetail,
+  EInvoiceIssueMode,
   EInvoiceProviderStatus,
   PaginatedResult,
   PaginationParams,
@@ -15,6 +16,7 @@ export type EInvoiceDownload = "pdf" | "zip" | "xml";
 export interface EInvoiceConfigPayload {
   enabled: boolean;
   autoIssue: boolean;
+  issueMode: EInvoiceIssueMode;
   supplierTaxCode: string;
   templateCode: string;
   invoiceSeries: string;

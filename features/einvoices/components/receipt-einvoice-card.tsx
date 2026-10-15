@@ -38,6 +38,12 @@ export function ReceiptEInvoiceCard({ receipt }: { receipt: Receipt }) {
             ? ` · Phát hành ${formatDate(data.issuedAt, true)}`
             : ""}
         </p>
+        {data.status === "DRAFT" && (
+          <p className="mt-1 text-xs font-medium text-amber-700">
+            Kiểm tra và ký phát hành nháp này trên vinvoice.viettel.vn, rồi bấm
+            Đồng bộ với Viettel để lấy số hóa đơn.
+          </p>
+        )}
         {data.status === "FAILED" && data.errorDescription && (
           <p className="mt-1 text-xs font-medium text-rose-600">
             {data.errorDescription}

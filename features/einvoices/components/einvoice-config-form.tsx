@@ -37,10 +37,24 @@ const TAX_OPTIONS = [
   { value: "10", label: "10%" },
 ] as const;
 
+const ISSUE_MODE_OPTIONS = [
+  {
+    value: "DRAFT",
+    label: "Tạo hóa đơn nháp trên Viettel",
+    hint: "Kế toán kiểm tra và ký phát hành trên vinvoice.viettel.vn, rồi bấm Đồng bộ với Viettel để lấy số.",
+  },
+  {
+    value: "ISSUE",
+    label: "Phát hành ngay",
+    hint: "Viettel ký số và cấp số ngay, không qua bước duyệt.",
+  },
+] as const;
+
 const schema = z
   .object({
     enabled: z.boolean(),
     autoIssue: z.boolean(),
+    issueMode: z.enum(["DRAFT", "ISSUE"]),
     supplierTaxCode: z
       .string()
       .trim()
@@ -72,6 +86,7 @@ function toValues(config: EInvoiceConfig | null): Values {
   return {
     enabled: config?.enabled ?? false,
     autoIssue: config?.autoIssue ?? true,
+    issueMode: config?.issueMode ?? "DRAFT",
     supplierTaxCode: config?.supplierTaxCode ?? "",
     templateCode: config?.templateCode ?? "",
     invoiceSeries: config?.invoiceSeries ?? "",
@@ -108,11 +123,13 @@ export function EInvoiceConfigForm({
   });
   const taxPercentage = useWatch({ control, name: "taxPercentage" });
   const taxed = Number(taxPercentage) > 0;
+  const issueMode = useWatch({ control, name: "issueMode" });
   const mutation = useMutation({
     mutationFn: (values: Values) => {
       const payload: EInvoiceConfigPayload = {
         enabled: values.enabled,
         autoIssue: values.autoIssue,
+        issueMode: values.issueMode,
         supplierTaxCode: values.supplierTaxCode,
         templateCode: values.templateCode,
         invoiceSeries: values.invoiceSeries,
@@ -152,6 +169,38 @@ export function EInvoiceConfigForm({
             hint="Tắt thì kế toán bấm Xuất hóa đơn trên từng phiếu thu."
           />
         </div>
+        <FormField
+          label="Khi xuất hóa đơn"
+          error={errors.issueMode?.message}
+          hint={
+            ISSUE_MODE_OPTIONS.find((option) => option.value === issueMode)
+              ?.hint
+          }
+          required
+        >
+          <Controller
+            control={control}
+            name="issueMode"
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={!canEdit}
+              >
+                <SelectTrigger className="sm:max-w-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ISSUE_MODE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </FormField>
         <div className="grid gap-5 sm:grid-cols-3">
           <FormField
             label="Mã số thuế bên bán"
@@ -254,8 +303,10 @@ export function EInvoiceConfigForm({
           </FormField>
         </div>
         <p className="text-xs text-slate-500">
-          Hình thức ký: HSM — Viettel ký số trên máy chủ khi phát hành. Đơn vị
-          tiền tệ: VND.
+          {issueMode === "DRAFT"
+            ? "Hình thức ký: kế toán ký phát hành từng hóa đơn nháp trên cổng Viettel."
+            : "Hình thức ký: HSM — Viettel ký số trên máy chủ khi phát hành."}{" "}
+          Đơn vị tiền tệ: VND.
         </p>
       </fieldset>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5">

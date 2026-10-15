@@ -12,7 +12,11 @@ import { invalidateEInvoices } from "../invalidate";
 import { CancelEInvoiceDialog } from "./cancel-einvoice-dialog";
 
 const RETRYABLE: EInvoice["status"][] = ["PENDING", "QUEUED", "FAILED"];
-const SYNCABLE: EInvoice["status"][] = ["WAITING_INVOICE_NUMBER", "FAILED"];
+const SYNCABLE: EInvoice["status"][] = [
+  "DRAFT",
+  "WAITING_INVOICE_NUMBER",
+  "FAILED",
+];
 
 /** Operator actions the backend allows for the invoice's current status. */
 export function EInvoiceActions({ invoice }: { invoice: EInvoice }) {
@@ -36,7 +40,7 @@ export function EInvoiceActions({ invoice }: { invoice: EInvoice }) {
   if (!can(role, PERMISSIONS.accounting)) return null;
 
   const issued = Boolean(invoice.invoiceNo) && invoice.status !== "CANCELLED";
-  const parentEmail = invoice.student?.parentEmail;
+  const parentEmail = invoice.buyerEmail ?? invoice.student?.parentEmail;
   return (
     <div className="flex flex-wrap gap-2">
       {RETRYABLE.includes(invoice.status) && (

@@ -439,6 +439,7 @@ export type EInvoiceStatus =
   | "PENDING"
   | "QUEUED"
   | "PROCESSING"
+  | "DRAFT"
   | "WAITING_INVOICE_NUMBER"
   | "ISSUED"
   | "FILE_PENDING"
@@ -470,6 +471,9 @@ export interface EInvoice extends BaseEntity {
   errorDescription: string | null;
   reconciliationAttempts: number;
   issuedAt: string | null;
+  /** Email the parent registered on the payment order; wins over parentEmail. */
+  buyerEmail: string | null;
+  emailSentAt: string | null;
 }
 
 export type EInvoiceFileType = "PDF" | "ZIP";
@@ -505,12 +509,16 @@ export interface EInvoiceDetail extends EInvoice {
   attempts: EInvoiceAttempt[];
 }
 
+/** DRAFT: a matched payment creates a draft the accountant signs on the Viettel portal. */
+export type EInvoiceIssueMode = "DRAFT" | "ISSUE";
+
 export interface EInvoiceConfig {
   id: string;
   schoolId: string;
   provider: string;
   enabled: boolean;
   autoIssue: boolean;
+  issueMode: EInvoiceIssueMode;
   supplierTaxCode: string;
   templateCode: string;
   invoiceSeries: string;

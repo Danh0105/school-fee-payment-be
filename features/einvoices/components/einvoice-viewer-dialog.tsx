@@ -309,9 +309,11 @@ function PdfPlaceholder({
     message =
       invoice.status === "FAILED"
         ? "Hóa đơn chưa phát hành được — xem lỗi phía trên."
-        : invoice.status === "CANCELLED"
-          ? "Hóa đơn đã hủy trước khi được Viettel cấp số."
-          : "Viettel chưa cấp số hóa đơn. Bản thể hiện sẽ hiển thị ngay khi phát hành xong.";
+        : invoice.status === "DRAFT"
+          ? "Hóa đơn đang là nháp trên cổng Viettel. Ký phát hành trên vinvoice.viettel.vn rồi bấm Đồng bộ với Viettel để lấy số và bản thể hiện."
+          : invoice.status === "CANCELLED"
+            ? "Hóa đơn đã hủy trước khi được Viettel cấp số."
+            : "Viettel chưa cấp số hóa đơn. Bản thể hiện sẽ hiển thị ngay khi phát hành xong.";
   } else if (error && !isFileNotReady(error)) {
     message = getEInvoiceErrorMessage(error);
     canRequest = true;
