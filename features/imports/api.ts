@@ -13,6 +13,8 @@ export interface PreviewImportPayload {
   createPaymentOrders?: boolean;
   /** YYYY-MM-DD the QR expires; omitted = no expiry. */
   qrExpiresAt?: string;
+  /** Payment list: service printed on receipts and e-invoices. */
+  serviceName?: string;
 }
 
 export const importsApi = {

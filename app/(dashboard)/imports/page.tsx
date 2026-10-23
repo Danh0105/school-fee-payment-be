@@ -71,6 +71,7 @@ const schema = z
     schoolId: z.string().optional(),
     expiryMode: z.enum(["NONE", "DATE"]),
     qrExpiresAt: z.string().optional(),
+    serviceName: z.string().max(200, "Tối đa 200 ký tự").optional(),
   })
   .superRefine((values, ctx) => {
     if (values.mode !== "PAYMENT_LIST") return;
@@ -121,6 +122,7 @@ export default function ImportsPage() {
   const mode = useWatch({ control, name: "mode" });
   const schoolId = useWatch({ control, name: "schoolId" });
   const expiryMode = useWatch({ control, name: "expiryMode" });
+  const serviceName = useWatch({ control, name: "serviceName" });
   const schools = useSchools({ limit: 200, sortBy: "name", sortOrder: "ASC" });
   const academicYear = useCurrentAcademicYear(
     mode === "PAYMENT_LIST" ? schoolId : undefined,
@@ -249,6 +251,7 @@ export default function ImportsPage() {
                           values.expiryMode === "DATE"
                             ? values.qrExpiresAt
                             : undefined,
+                        serviceName: values.serviceName?.trim() || undefined,
                       }
                     : { file: values.file[0], type: "STUDENTS" },
                 );
@@ -364,6 +367,23 @@ export default function ImportsPage() {
                       />
                     ) : null}
                   </FormField>
+                  <div className="sm:col-span-2">
+                    <FormField
+                      label="Tên dịch vụ trên hóa đơn"
+                      htmlFor="serviceName"
+                      error={errors.serviceName?.message}
+                      hint={`In trên phiếu thu và hóa đơn điện tử, tự thêm năm học: "${
+                        serviceName?.trim() || "Học phí"
+                      } năm học ${academicYear.data?.name ?? "…"}". Bỏ trống: "Học phí".`}
+                    >
+                      <Input
+                        id="serviceName"
+                        placeholder="Học phí"
+                        maxLength={200}
+                        {...register("serviceName")}
+                      />
+                    </FormField>
+                  </div>
                 </div>
               ) : null}
               <div className="flex justify-end">
@@ -468,12 +488,19 @@ export default function ImportsPage() {
           ) : null}
           {hasAmounts ? (
             <Card className="border-amber-200 bg-amber-50/60">
-              <CardContent className="grid gap-3 p-5 text-sm sm:grid-cols-4">
+              <CardContent className="grid gap-3 p-5 text-sm sm:grid-cols-2 lg:grid-cols-5">
                 <SummaryDetail
                   label="Danh sách"
                   value={paymentOptions?.title || "—"}
                   note={`${preview.data.validRows} học sinh`}
                 />
+                {savesDebts ? (
+                  <SummaryDetail
+                    label="Dịch vụ trên hóa đơn"
+                    value={paymentOptions?.serviceName || "Học phí"}
+                    note="Hóa đơn tự thêm năm học"
+                  />
+                ) : null}
                 <SummaryDetail
                   label="Tổng tiền"
                   value={`${formatAmount(

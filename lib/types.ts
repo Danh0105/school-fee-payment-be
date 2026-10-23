@@ -341,6 +341,8 @@ export interface ImportPaymentOptions {
   /** YYYY-MM-DD; null = QR without expiry. */
   qrExpiresAt: string | null;
   title: string | null;
+  /** Service printed on receipts and e-invoices; null = "Học phí". */
+  serviceName?: string | null;
 }
 
 export interface ImportPreview {
