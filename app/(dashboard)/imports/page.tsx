@@ -17,7 +17,6 @@ import { FormField } from "@/components/form-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -70,7 +69,6 @@ const schema = z
     /** BOOTSTRAP: template with "Thông tin trường"; PAYMENT_LIST: a list with SỐ TIỀN. */
     mode: z.enum(["BOOTSTRAP", "PAYMENT_LIST"]),
     schoolId: z.string().optional(),
-    saveForDebts: z.boolean(),
     expiryMode: z.enum(["NONE", "DATE"]),
     qrExpiresAt: z.string().optional(),
   })
@@ -116,7 +114,6 @@ export default function ImportsPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       mode: "BOOTSTRAP",
-      saveForDebts: true,
       expiryMode: "NONE",
     },
   });
@@ -224,8 +221,9 @@ export default function ImportsPage() {
                     HỌ VÀ TÊN, NGÀY/THÁNG/NĂM SINH, SĐT PHỤ HUYNH, MÃ ĐỊNH DANH
                     CCCD, SỐ TIỀN, NỘI DUNG
                   </strong>
-                  . Lớp lấy từ tiêu đề hoặc tên sheet. Hệ thống xuất PDF mã QR
-                  cho từng học sinh vào tài khoản của trường.
+                  . Lớp lấy từ tiêu đề hoặc tên sheet. Khi lưu, mỗi học sinh có
+                  công nợ và một mã QR động VietinBank; tiền về tài khoản thu hộ
+                  của công ty và tự gạch nợ khi VietinBank báo có.
                 </>
               ) : (
                 <>
@@ -246,7 +244,7 @@ export default function ImportsPage() {
                         type: "STUDENTS",
                         schoolId: values.schoolId,
                         academicYearId: academicYear.data?.id,
-                        createPaymentOrders: values.saveForDebts,
+                        createPaymentOrders: true,
                         qrExpiresAt:
                           values.expiryMode === "DATE"
                             ? values.qrExpiresAt
@@ -292,7 +290,7 @@ export default function ImportsPage() {
                     error={errors.schoolId?.message}
                     hint={
                       !schoolId
-                        ? "QR chuyển tiền vào tài khoản ngân hàng của trường."
+                        ? "Học sinh và công nợ được lưu vào trường này."
                         : academicYear.isLoading
                           ? "Đang tải năm học…"
                           : academicYear.data
@@ -327,7 +325,7 @@ export default function ImportsPage() {
                     error={errors.qrExpiresAt?.message}
                     hint={
                       expiryMode === "DATE"
-                        ? "Hết ngày này, đơn hết hạn và tiền về sau đó không tự khớp."
+                        ? "Hết ngày này, VietinBank từ chối thanh toán mã QR."
                         : "Mã QR dùng được đến khi thanh toán xong."
                     }
                   >
@@ -366,32 +364,6 @@ export default function ImportsPage() {
                       />
                     ) : null}
                   </FormField>
-                  <Controller
-                    control={control}
-                    name="saveForDebts"
-                    render={({ field }) => (
-                      <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4 sm:col-span-2">
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={(checked) =>
-                            field.onChange(checked === true)
-                          }
-                          className="mt-0.5"
-                        />
-                        <span>
-                          <span className="block text-sm font-semibold text-slate-800">
-                            Lưu để gạch nợ
-                          </span>
-                          <span className="mt-1 block text-xs text-slate-500">
-                            Khi xác nhận: lưu học sinh (đối chiếu theo mã định
-                            danh), tạo công nợ đúng SỐ TIỀN và một đơn thanh
-                            toán có mã QR cho mỗi học sinh. Tiền về, kế toán ghi
-                            nhận trên đơn để gạch nợ.
-                          </span>
-                        </span>
-                      </label>
-                    )}
-                  />
                 </div>
               ) : null}
               <div className="flex justify-end">
@@ -435,7 +407,7 @@ export default function ImportsPage() {
                   ? [
                       ["Công nợ tạo mới", confirm.data.receivablesCreated],
                       [
-                        "Đơn thanh toán (có QR)",
+                        "Đơn thanh toán (QR VietinBank)",
                         confirm.data.paymentOrdersCreated,
                       ],
                     ]
@@ -527,10 +499,10 @@ export default function ImportsPage() {
                 />
                 <SummaryDetail
                   label="Gạch nợ"
-                  value={savesDebts ? "Lưu công nợ & đơn" : "Chỉ xuất PDF"}
+                  value={savesDebts ? "Tự động qua VietinBank" : "Chỉ xuất PDF"}
                   note={
                     savesDebts
-                      ? "Tạo khi xác nhận"
+                      ? "Công nợ & đơn tạo khi lưu; QR có sau khi lưu"
                       : "Không tạo công nợ, đơn thanh toán"
                   }
                 />
@@ -712,7 +684,8 @@ export default function ImportsPage() {
               Chọn lại file
             </Button>
             <div className="flex flex-wrap justify-end gap-3">
-              {hasAmounts ? (
+              {/* A payment list's QR is drawn by VietinBank when it is saved. */}
+              {hasAmounts && !savesDebts ? (
                 <Button
                   variant="outline"
                   disabled={!preview.data.validRows || downloadPdf.isPending}
