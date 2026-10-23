@@ -335,19 +335,67 @@ export interface ImportRowError {
   message: string;
 }
 
+/** Payment list ("danh sách thu" with amounts) choices kept on the import. */
+export interface ImportPaymentOptions {
+  createPaymentOrders: boolean;
+  /** YYYY-MM-DD; null = QR without expiry. */
+  qrExpiresAt: string | null;
+  title: string | null;
+}
+
 export interface ImportPreview {
   importSessionId: string;
+  paymentQrPdfUrl: string;
+  paymentOptions: ImportPaymentOptions | null;
   totalRows: number;
   validRows: number;
   invalidRows: number;
   errors: ImportRowError[];
+  rows: ImportPreviewRow[];
+  target: {
+    schoolCode: string;
+    schoolName: string;
+    academicYearName: string;
+    schoolWillBeCreated: boolean;
+    academicYearWillBeCreated: boolean;
+    classesInFile: number;
+  } | null;
+}
+
+export interface ImportPreviewRow {
+  rowNumber: number;
+  studentCode: string | null;
+  identifierCode: string | null;
+  fullName: string;
+  dateOfBirth: string | null;
+  gender: "MALE" | "FEMALE" | "OTHER" | null;
+  address: string | null;
+  phone: string | null;
+  parentName: string | null;
+  parentPhone: string | null;
+  parentEmail: string | null;
+  status: "ACTIVE" | "INACTIVE" | "GRADUATED" | "TRANSFERRED";
+  classCode: string;
+  className: string;
+  /** "0.00" when the row has no amount. */
+  originalAmount: string;
+  legacyTransferContent: string | null;
 }
 
 export interface ImportResult {
+  schoolsCreated: number;
+  academicYearsCreated: number;
+  classesCreated: number;
   studentsCreated: number;
   studentsMatched: number;
   receivablesCreated: number;
   receivablesSkipped: number;
+  paymentOrdersCreated?: number;
+  paymentOrders?: {
+    rowNumber: number;
+    paymentOrderId: string;
+    orderCode: string;
+  }[];
 }
 
 export interface DashboardSummary {

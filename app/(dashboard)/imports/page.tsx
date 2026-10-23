@@ -5,17 +5,19 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import {
   AlertCircle,
   CheckCircle2,
+  Download,
   FileSpreadsheet,
+  QrCode,
   RotateCcw,
   UploadCloud,
 } from "lucide-react";
 import { z } from "zod";
 import { PageHeader } from "@/components/page-header";
 import { FormField } from "@/components/form-field";
-import { CurrentAcademicYearBadge } from "@/components/current-academic-year-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -33,75 +35,137 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCurrentAcademicYear } from "@/features/academic-years/hooks";
-import { useFeePlans } from "@/features/fee-plans/hooks";
-import { useConfirmImport, usePreviewImport } from "@/features/imports/hooks";
+import {
+  useConfirmImport,
+  useDownloadPaymentQrPdf,
+  useDownloadStudentImportTemplate,
+  usePreviewImport,
+} from "@/features/imports/hooks";
 import { useSchools } from "@/features/schools/hooks";
-import { uuid } from "@/lib/validation";
-import { useAuthStore } from "@/stores/auth-store";
+
+/** Today in Vietnam time, YYYY-MM-DD. */
+const todayVn = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(
+    new Date(),
+  );
 
 const schema = z
   .object({
-    file: z.custom<FileList>(
-      (value) => value instanceof FileList && value.length > 0,
-      "Vui lòng chọn file Excel",
-    ),
-    schoolId: uuid("trường"),
-    feePlanId: z.union([z.literal(""), z.uuid()]).optional(),
-    type: z.enum(["STUDENTS", "RECEIVABLES", "COMBINED"]),
+    file: z
+      .custom<FileList>(
+        (value) => value instanceof FileList && value.length > 0,
+        "Vui lòng chọn file Excel",
+      )
+      .superRefine((value, ctx) => {
+        const file = value?.[0];
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith(".xlsx")) {
+          ctx.addIssue({
+            code: "custom",
+            message:
+              "Chỉ hỗ trợ file .xlsx. Hãy mở file .xls bằng Excel và lưu lại thành .xlsx.",
+          });
+        }
+      }),
+    /** BOOTSTRAP: template with "Thông tin trường"; PAYMENT_LIST: a list with SỐ TIỀN. */
+    mode: z.enum(["BOOTSTRAP", "PAYMENT_LIST"]),
+    schoolId: z.string().optional(),
+    saveForDebts: z.boolean(),
+    expiryMode: z.enum(["NONE", "DATE"]),
+    qrExpiresAt: z.string().optional(),
   })
-  .superRefine((value, ctx) => {
-    if (value.type !== "STUDENTS" && !value.feePlanId)
+  .superRefine((values, ctx) => {
+    if (values.mode !== "PAYMENT_LIST") return;
+    if (!values.schoolId) {
       ctx.addIssue({
         code: "custom",
-        path: ["feePlanId"],
-        message: "Khoản thu là bắt buộc với loại này",
+        path: ["schoolId"],
+        message: "Chọn trường của danh sách",
       });
+    }
+    if (values.expiryMode === "DATE") {
+      if (!values.qrExpiresAt) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["qrExpiresAt"],
+          message: "Chọn ngày hết hạn của mã QR",
+        });
+      } else if (values.qrExpiresAt < todayVn()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["qrExpiresAt"],
+          message: "Ngày hết hạn phải từ hôm nay trở đi",
+        });
+      }
+    }
   });
 type Values = z.infer<typeof schema>;
 
 export default function ImportsPage() {
   const preview = usePreviewImport();
   const confirm = useConfirmImport();
-  const schoolId = useAuthStore((state) => state.user?.schoolId) ?? "";
-  const schools = useSchools({ limit: 200 });
+  const template = useDownloadStudentImportTemplate();
+  const downloadPdf = useDownloadPaymentQrPdf();
   const {
     register,
     control,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: {
-      schoolId,
-      feePlanId: "",
-      type: "COMBINED",
+      mode: "BOOTSTRAP",
+      saveForDebts: true,
+      expiryMode: "NONE",
     },
   });
-  const type = useWatch({ control, name: "type" });
-  const selectedSchoolId = useWatch({ control, name: "schoolId" });
-  const currentYear = useCurrentAcademicYear(selectedSchoolId);
-  const plans = useFeePlans(
-    {
-      limit: 200,
-      schoolId: selectedSchoolId || undefined,
-      academicYearId: currentYear.data?.id,
-      status: "ACTIVE",
-    },
-    Boolean(selectedSchoolId && currentYear.data),
+  const selectedFiles = useWatch({ control, name: "file" });
+  const mode = useWatch({ control, name: "mode" });
+  const schoolId = useWatch({ control, name: "schoolId" });
+  const expiryMode = useWatch({ control, name: "expiryMode" });
+  const schools = useSchools({ limit: 200, sortBy: "name", sortOrder: "ASC" });
+  const academicYear = useCurrentAcademicYear(
+    mode === "PAYMENT_LIST" ? schoolId : undefined,
   );
+  const paymentOptions = preview.data?.paymentOptions ?? null;
+  const hasAmounts = Boolean(
+    preview.data?.rows.some((row) => Number(row.originalAmount) > 0),
+  );
+  const savesDebts = Boolean(paymentOptions?.createPaymentOrders);
+  const pdfFileName = `QR-thanh-toan-${(paymentOptions?.title || "danh-sach")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/gi, "d")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")}.pdf`;
+  const exportPdf = () =>
+    preview.data &&
+    downloadPdf.mutate({
+      importSessionId: preview.data.importSessionId,
+      fileName: pdfFileName,
+    });
   const restart = () => {
     preview.reset();
     confirm.reset();
-    reset({ schoolId, feePlanId: "", type: "COMBINED" });
+    reset();
   };
   return (
     <>
       <PageHeader
         eyebrow="Nhập dữ liệu"
-        title="Import từ Excel"
-        description="Mọi file đều phải qua bước kiểm tra trước khi ghi vào hệ thống."
+        title="Khởi tạo dữ liệu từ Excel"
+        description="Tạo trường, năm học, lớp và toàn bộ thông tin học sinh từ một file mẫu."
+        actions={
+          <Button
+            variant="outline"
+            disabled={template.isPending}
+            onClick={() => template.mutate()}
+          >
+            <Download />
+            {template.isPending ? "Đang xuất file…" : "Xuất file mẫu khởi tạo"}
+          </Button>
+        }
       />
       <div className="mb-6 flex items-center gap-3">
         <Step
@@ -121,28 +185,87 @@ export default function ImportsPage() {
       {!preview.data ? (
         <Card className="mx-auto max-w-3xl">
           <CardHeader>
-            <CardTitle>Chọn nguồn dữ liệu</CardTitle>
+            <CardTitle>Chọn file khởi tạo dữ liệu</CardTitle>
           </CardHeader>
           <CardContent>
+            <Controller
+              control={control}
+              name="mode"
+              render={({ field }) => (
+                <div className="mb-5 grid gap-2 rounded-xl bg-slate-100 p-1 sm:grid-cols-2">
+                  {(
+                    [
+                      ["BOOTSTRAP", "File mẫu khởi tạo trường"],
+                      ["PAYMENT_LIST", "Danh sách thu có SỐ TIỀN"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => field.onChange(value)}
+                      className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                        field.value === value
+                          ? "bg-white text-teal-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            />
+            <div className="mb-5 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+              {mode === "PAYMENT_LIST" ? (
+                <>
+                  File gồm dòng tiêu đề (ví dụ{" "}
+                  <strong>DANH SÁCH BỔ SUNG LỚP 3A4 …</strong>) và các cột{" "}
+                  <strong>
+                    HỌ VÀ TÊN, NGÀY/THÁNG/NĂM SINH, SĐT PHỤ HUYNH, MÃ ĐỊNH DANH
+                    CCCD, SỐ TIỀN, NỘI DUNG
+                  </strong>
+                  . Lớp lấy từ tiêu đề hoặc tên sheet. Hệ thống xuất PDF mã QR
+                  cho từng học sinh vào tài khoản của trường.
+                </>
+              ) : (
+                <>
+                  Điền sheet <strong>Thông tin trường</strong> và sheet{" "}
+                  <strong>Dữ liệu import</strong>. Khi xác nhận, hệ thống sẽ tự
+                  tạo trường, năm học, học kỳ mặc định, lớp và học sinh chưa tồn
+                  tại.
+                </>
+              )}
+            </div>
             <form
-              className="grid gap-5 sm:grid-cols-2"
+              className="grid gap-5"
               onSubmit={handleSubmit((values) => {
-                if (!currentYear.data) return;
-                preview.mutate({
-                  file: values.file[0],
-                  schoolId: values.schoolId,
-                  academicYearId: currentYear.data.id,
-                  feePlanId: values.feePlanId || undefined,
-                  type: values.type,
-                });
+                preview.mutate(
+                  values.mode === "PAYMENT_LIST"
+                    ? {
+                        file: values.file[0],
+                        type: "STUDENTS",
+                        schoolId: values.schoolId,
+                        academicYearId: academicYear.data?.id,
+                        createPaymentOrders: values.saveForDebts,
+                        qrExpiresAt:
+                          values.expiryMode === "DATE"
+                            ? values.qrExpiresAt
+                            : undefined,
+                      }
+                    : { file: values.file[0], type: "STUDENTS" },
+                );
               })}
             >
-              <div className="sm:col-span-2">
+              <div>
                 <FormField
                   label="File Excel"
                   required
                   error={errors.file?.message as string | undefined}
-                  hint="Hỗ trợ .xlsx và .xls theo mẫu import của hệ thống."
+                  hint={
+                    selectedFiles?.[0]
+                      ? `Đã chọn: ${selectedFiles[0].name}`
+                      : "Hỗ trợ file .xlsx theo mẫu import của hệ thống."
+                  }
                 >
                   <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 text-center transition hover:border-teal-400 hover:bg-teal-50">
                     <UploadCloud className="mb-3 size-8 text-teal-600" />
@@ -154,113 +277,133 @@ export default function ImportsPage() {
                     </p>
                     <Input
                       type="file"
-                      accept=".xlsx,.xls"
+                      accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                       className="sr-only"
                       {...register("file")}
                     />
                   </label>
                 </FormField>
               </div>
-              <FormField
-                label="Loại import"
-                required
-                error={errors.type?.message}
-              >
-                <Controller
-                  name="type"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="STUDENTS">Chỉ học sinh</SelectItem>
-                        <SelectItem value="RECEIVABLES">Chỉ công nợ</SelectItem>
-                        <SelectItem value="COMBINED">
-                          Học sinh & công nợ
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FormField>
-              <FormField
-                label="Trường"
-                required
-                error={errors.schoolId?.message}
-              >
-                <Controller
-                  name="schoolId"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      value={field.value || undefined}
-                      disabled={Boolean(schoolId)}
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        setValue("feePlanId", "");
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn trường" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {schools.data?.data.map((item) => (
-                          <SelectItem key={item.id} value={item.id}>
-                            {item.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FormField>
-              <FormField label="Năm học hiện tại">
-                <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-slate-50 px-3">
-                  <CurrentAcademicYearBadge
-                    name={currentYear.data?.name}
-                    loading={currentYear.isLoading}
-                    error={currentYear.error}
-                    emptyLabel="Chọn trường để xác định"
-                  />
-                </div>
-              </FormField>
-              {type !== "STUDENTS" && (
-                <FormField
-                  label="Kế hoạch thu"
-                  required
-                  error={errors.feePlanId?.message}
-                >
-                  <Controller
-                    name="feePlanId"
-                    control={control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value || undefined}
-                        onValueChange={field.onChange}
-                        disabled={!currentYear.data || plans.isLoading}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn khoản thu" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {plans.data?.data.map((item) => (
-                            <SelectItem key={item.id} value={item.id}>
-                              {item.name}
-                            </SelectItem>
+              {mode === "PAYMENT_LIST" ? (
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <FormField
+                    label="Trường"
+                    required
+                    error={errors.schoolId?.message}
+                    hint={
+                      !schoolId
+                        ? "QR chuyển tiền vào tài khoản ngân hàng của trường."
+                        : academicYear.isLoading
+                          ? "Đang tải năm học…"
+                          : academicYear.data
+                            ? `Năm học hiện tại: ${academicYear.data.name}`
+                            : "Trường chưa có năm học hiện tại."
+                    }
+                  >
+                    <Controller
+                      control={control}
+                      name="schoolId"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? ""}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Chọn trường" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {schools.data?.data.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Thời hạn mã QR"
+                    error={errors.qrExpiresAt?.message}
+                    hint={
+                      expiryMode === "DATE"
+                        ? "Hết ngày này, đơn hết hạn và tiền về sau đó không tự khớp."
+                        : "Mã QR dùng được đến khi thanh toán xong."
+                    }
+                  >
+                    <Controller
+                      control={control}
+                      name="expiryMode"
+                      render={({ field }) => (
+                        <div className="flex gap-2">
+                          {(
+                            [
+                              ["NONE", "Không thời hạn"],
+                              ["DATE", "Đến ngày"],
+                            ] as const
+                          ).map(([value, label]) => (
+                            <Button
+                              key={value}
+                              type="button"
+                              size="sm"
+                              variant={
+                                field.value === value ? "default" : "outline"
+                              }
+                              onClick={() => field.onChange(value)}
+                            >
+                              {label}
+                            </Button>
                           ))}
-                        </SelectContent>
-                      </Select>
+                        </div>
+                      )}
+                    />
+                    {expiryMode === "DATE" ? (
+                      <Input
+                        type="date"
+                        min={todayVn()}
+                        className="mt-2"
+                        {...register("qrExpiresAt")}
+                      />
+                    ) : null}
+                  </FormField>
+                  <Controller
+                    control={control}
+                    name="saveForDebts"
+                    render={({ field }) => (
+                      <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-4 sm:col-span-2">
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(checked) =>
+                            field.onChange(checked === true)
+                          }
+                          className="mt-0.5"
+                        />
+                        <span>
+                          <span className="block text-sm font-semibold text-slate-800">
+                            Lưu để gạch nợ
+                          </span>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            Khi xác nhận: lưu học sinh (đối chiếu theo mã định
+                            danh), tạo công nợ đúng SỐ TIỀN và một đơn thanh
+                            toán có mã QR cho mỗi học sinh. Tiền về, kế toán ghi
+                            nhận trên đơn để gạch nợ.
+                          </span>
+                        </span>
+                      </label>
                     )}
                   />
-                </FormField>
-              )}
-              <div className="sm:col-span-2 flex justify-end">
+                </div>
+              ) : null}
+              <div className="flex justify-end">
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={preview.isPending || !currentYear.data}
+                  disabled={
+                    preview.isPending ||
+                    (mode === "PAYMENT_LIST" &&
+                      Boolean(schoolId) &&
+                      !academicYear.data)
+                  }
                 >
                   <FileSpreadsheet />
                   {preview.isPending ? "Đang kiểm tra…" : "Kiểm tra dữ liệu"}
@@ -281,12 +424,22 @@ export default function ImportsPage() {
             <p className="mt-2 text-sm text-slate-500">
               Dữ liệu hợp lệ đã được ghi vào hệ thống.
             </p>
-            <div className="mt-7 grid w-full gap-3 sm:grid-cols-4">
+            <div className="mt-7 grid w-full gap-3 sm:grid-cols-2">
               {[
+                ["Trường tạo mới", confirm.data.schoolsCreated],
+                ["Năm học tạo mới", confirm.data.academicYearsCreated],
+                ["Lớp tạo mới", confirm.data.classesCreated],
                 ["HS tạo mới", confirm.data.studentsCreated],
                 ["HS đã có", confirm.data.studentsMatched],
-                ["Công nợ tạo", confirm.data.receivablesCreated],
-                ["Công nợ bỏ qua", confirm.data.receivablesSkipped],
+                ...(confirm.data.paymentOrdersCreated !== undefined
+                  ? [
+                      ["Công nợ tạo mới", confirm.data.receivablesCreated],
+                      [
+                        "Đơn thanh toán (có QR)",
+                        confirm.data.paymentOrdersCreated,
+                      ],
+                    ]
+                  : []),
               ].map(([label, value]) => (
                 <div key={String(label)} className="rounded-xl bg-slate-50 p-4">
                   <p className="font-display text-2xl font-bold text-slate-950">
@@ -296,14 +449,94 @@ export default function ImportsPage() {
                 </div>
               ))}
             </div>
-            <Button className="mt-7" variant="outline" onClick={restart}>
-              <RotateCcw />
-              Import file khác
-            </Button>
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
+              {hasAmounts ? (
+                <Button disabled={downloadPdf.isPending} onClick={exportPdf}>
+                  <QrCode />
+                  {downloadPdf.isPending ? "Đang xuất PDF…" : "Tải PDF mã QR"}
+                </Button>
+              ) : null}
+              <Button variant="outline" onClick={restart}>
+                <RotateCcw />
+                Import file khác
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-5">
+          {preview.data.target ? (
+            <Card className="border-teal-200 bg-teal-50/60">
+              <CardContent className="grid gap-3 p-5 text-sm sm:grid-cols-3">
+                <SummaryDetail
+                  label="Trường"
+                  value={`${preview.data.target.schoolName} (${preview.data.target.schoolCode})`}
+                  note={
+                    preview.data.target.schoolWillBeCreated
+                      ? "Sẽ tạo mới"
+                      : "Đã tồn tại"
+                  }
+                />
+                <SummaryDetail
+                  label="Năm học"
+                  value={preview.data.target.academicYearName}
+                  note={
+                    preview.data.target.academicYearWillBeCreated
+                      ? "Sẽ tạo mới"
+                      : "Đã tồn tại"
+                  }
+                />
+                <SummaryDetail
+                  label="Lớp trong file"
+                  value={String(preview.data.target.classesInFile)}
+                  note="Sẽ tạo lớp chưa tồn tại"
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+          {hasAmounts ? (
+            <Card className="border-amber-200 bg-amber-50/60">
+              <CardContent className="grid gap-3 p-5 text-sm sm:grid-cols-4">
+                <SummaryDetail
+                  label="Danh sách"
+                  value={paymentOptions?.title || "—"}
+                  note={`${preview.data.validRows} học sinh`}
+                />
+                <SummaryDetail
+                  label="Tổng tiền"
+                  value={`${formatAmount(
+                    preview.data.rows.reduce(
+                      (sum, row) => sum + Number(row.originalAmount),
+                      0,
+                    ),
+                  )} đ`}
+                  note="Theo cột SỐ TIỀN"
+                />
+                <SummaryDetail
+                  label="Hạn mã QR"
+                  value={
+                    paymentOptions?.qrExpiresAt
+                      ? formatImportDate(paymentOptions.qrExpiresAt)
+                      : "Không thời hạn"
+                  }
+                  note={
+                    paymentOptions?.qrExpiresAt
+                      ? "Hết hạn cuối ngày (giờ VN)"
+                      : "Dùng đến khi thanh toán xong"
+                  }
+                />
+                <SummaryDetail
+                  label="Gạch nợ"
+                  value={savesDebts ? "Lưu công nợ & đơn" : "Chỉ xuất PDF"}
+                  note={
+                    savesDebts
+                      ? "Tạo khi xác nhận"
+                      : "Không tạo công nợ, đơn thanh toán"
+                  }
+                />
+              </CardContent>
+            </Card>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-3">
             <Summary label="Tổng số dòng" value={preview.data.totalRows} />
             <Summary
@@ -334,47 +567,143 @@ export default function ImportsPage() {
                 )}
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               {preview.data.errors.length ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sheet</TableHead>
-                      <TableHead>Dòng</TableHead>
-                      <TableHead>Cột / Field</TableHead>
-                      <TableHead>Giá trị</TableHead>
-                      <TableHead>Lỗi</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {preview.data.errors.map((error, index) => (
-                      <TableRow
-                        key={`${error.sheet}-${error.row}-${error.column}-${index}`}
-                        className="bg-rose-50/50"
-                      >
-                        <TableCell>{error.sheet}</TableCell>
-                        <TableCell className="font-bold text-rose-700">
-                          {error.row}
-                        </TableCell>
-                        <TableCell>
-                          {error.column} · {error.field}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {String(error.value ?? "")}
-                        </TableCell>
-                        <TableCell className="text-rose-700">
-                          {error.message}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div>
+                  <h4 className="mb-3 font-semibold text-rose-700">
+                    Lỗi dữ liệu
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Sheet</TableHead>
+                          <TableHead>Dòng</TableHead>
+                          <TableHead>Cột / Field</TableHead>
+                          <TableHead>Giá trị</TableHead>
+                          <TableHead>Lỗi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {preview.data.errors.map((error, index) => (
+                          <TableRow
+                            key={`${error.sheet}-${error.row}-${error.column}-${index}`}
+                            className="bg-rose-50/50"
+                          >
+                            <TableCell>{error.sheet}</TableCell>
+                            <TableCell className="font-bold text-rose-700">
+                              {error.row}
+                            </TableCell>
+                            <TableCell>
+                              {error.column} · {error.field}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {String(error.value ?? "")}
+                            </TableCell>
+                            <TableCell className="text-rose-700">
+                              {error.message}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
               ) : (
-                <div className="flex min-h-40 flex-col items-center justify-center text-emerald-700">
-                  <CheckCircle2 className="mb-3 size-9" />
-                  <p className="font-semibold">Không phát hiện lỗi dữ liệu</p>
+                <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                  <CheckCircle2 className="size-5" />
+                  Không phát hiện lỗi dữ liệu
                 </div>
               )}
+
+              {preview.data.rows.length ? (
+                <div>
+                  <h4 className="mb-3 font-semibold text-slate-900">
+                    Dữ liệu học sinh sẽ import ({preview.data.rows.length})
+                  </h4>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Dòng</TableHead>
+                          <TableHead>Học sinh</TableHead>
+                          <TableHead>Mã định danh</TableHead>
+                          <TableHead>Ngày sinh</TableHead>
+                          <TableHead>Giới tính</TableHead>
+                          <TableHead>Lớp</TableHead>
+                          <TableHead>Liên hệ học sinh</TableHead>
+                          <TableHead>Phụ huynh</TableHead>
+                          <TableHead>Liên hệ phụ huynh</TableHead>
+                          <TableHead>Địa chỉ</TableHead>
+                          <TableHead>Trạng thái</TableHead>
+                          {hasAmounts ? (
+                            <>
+                              <TableHead className="text-right">
+                                Số tiền
+                              </TableHead>
+                              <TableHead>Nội dung chuyển khoản</TableHead>
+                            </>
+                          ) : null}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {preview.data.rows.map((row) => (
+                          <TableRow key={row.rowNumber}>
+                            <TableCell className="font-semibold">
+                              {row.rowNumber}
+                            </TableCell>
+                            <TableCell className="min-w-44 font-semibold text-slate-900">
+                              {row.fullName}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap font-mono text-xs">
+                              {row.identifierCode || "—"}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {formatImportDate(row.dateOfBirth)}
+                            </TableCell>
+                            <TableCell>{genderLabel(row.gender)}</TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {row.className}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {row.phone || "—"}
+                            </TableCell>
+                            <TableCell className="min-w-40">
+                              {row.parentName || "—"}
+                            </TableCell>
+                            <TableCell className="min-w-48">
+                              <div>{row.parentPhone || "—"}</div>
+                              {row.parentEmail ? (
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {row.parentEmail}
+                                </div>
+                              ) : null}
+                            </TableCell>
+                            <TableCell className="min-w-52">
+                              {row.address || "—"}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              <Badge variant="secondary">
+                                {studentStatusLabel(row.status)}
+                              </Badge>
+                            </TableCell>
+                            {hasAmounts ? (
+                              <>
+                                <TableCell className="whitespace-nowrap text-right font-semibold">
+                                  {formatAmount(Number(row.originalAmount))}
+                                </TableCell>
+                                <TableCell className="min-w-64 text-xs">
+                                  {row.legacyTransferContent || "Tự sinh HV…"}
+                                </TableCell>
+                              </>
+                            ) : null}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
           <div className="flex justify-between">
@@ -382,14 +711,37 @@ export default function ImportsPage() {
               <RotateCcw />
               Chọn lại file
             </Button>
-            <Button
-              disabled={!preview.data.validRows || confirm.isPending}
-              onClick={() => confirm.mutate(preview.data.importSessionId)}
-            >
-              {confirm.isPending
-                ? "Đang import…"
-                : `Xác nhận import ${preview.data.validRows} dòng`}
-            </Button>
+            <div className="flex flex-wrap justify-end gap-3">
+              {hasAmounts ? (
+                <Button
+                  variant="outline"
+                  disabled={!preview.data.validRows || downloadPdf.isPending}
+                  onClick={exportPdf}
+                >
+                  <QrCode />
+                  {downloadPdf.isPending
+                    ? "Đang xuất PDF…"
+                    : "Tải PDF xem trước"}
+                </Button>
+              ) : null}
+              <Button
+                disabled={!preview.data.validRows || confirm.isPending}
+                onClick={() =>
+                  confirm.mutate(preview.data.importSessionId, {
+                    // Saved orders carry the final QR: export the PDF from them.
+                    onSuccess: () => {
+                      if (savesDebts) exportPdf();
+                    },
+                  })
+                }
+              >
+                {confirm.isPending
+                  ? "Đang import…"
+                  : savesDebts
+                    ? `Lưu ${preview.data.validRows} học sinh để gạch nợ & xuất PDF`
+                    : `Xác nhận import ${preview.data.validRows} dòng`}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -441,4 +793,53 @@ function Summary({
       </CardContent>
     </Card>
   );
+}
+
+function SummaryDetail({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: string;
+  note: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
+        {label}
+      </p>
+      <p className="mt-1 font-semibold text-slate-950">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{note}</p>
+    </div>
+  );
+}
+
+function formatImportDate(value: string | null) {
+  if (!value) return "—";
+  const [year, month, day] = value.split("-");
+  return day && month && year ? `${day}/${month}/${year}` : value;
+}
+
+function genderLabel(value: "MALE" | "FEMALE" | "OTHER" | null) {
+  if (value === "MALE") return "Nam";
+  if (value === "FEMALE") return "Nữ";
+  if (value === "OTHER") return "Khác";
+  return "—";
+}
+
+function studentStatusLabel(
+  value: "ACTIVE" | "INACTIVE" | "GRADUATED" | "TRANSFERRED",
+) {
+  const labels = {
+    ACTIVE: "Đang học",
+    INACTIVE: "Ngừng học",
+    GRADUATED: "Đã tốt nghiệp",
+    TRANSFERRED: "Đã chuyển trường",
+  } as const;
+  return labels[value];
+}
+
+function formatAmount(value: number) {
+  return new Intl.NumberFormat("vi-VN").format(value);
 }
